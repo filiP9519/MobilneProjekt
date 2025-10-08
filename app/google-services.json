@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "302140226551",
+    "project_id": "mobilneapp-f6c05",
+    "storage_bucket": "mobilneapp-f6c05.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:302140226551:android:cf23699e13970851370cf2",
+        "android_client_info": {
+          "package_name": "com.dji.mobilneprojekt"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiJOu3LObrlr3rVOi1sfnq9YqA4o9SIag"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
