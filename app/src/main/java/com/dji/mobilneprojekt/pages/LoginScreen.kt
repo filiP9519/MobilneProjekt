@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.dji.mobilneprojekt.AuthViewModel
 import com.google.firebase.Firebase
-import com.google.firebase.firestore.firestore
+//import com.google.firebase.firestore.firestore
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.input.KeyboardType
