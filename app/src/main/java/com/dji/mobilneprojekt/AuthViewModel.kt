@@ -29,9 +29,9 @@ class AuthViewModel : ViewModel() {
         }
     }
 
-    fun login(email: String, password: String) {
+    fun login(email: String, password: String, username: String) {
 
-        if(email == null || password == null){
+        if(email == null || password == null || username == null){
             _authState.value = AuthState.Error("Email or password cannot be empty.")
             return
         }
@@ -46,9 +46,9 @@ class AuthViewModel : ViewModel() {
             }
     }
 
-    fun register(email: String, password: String) {
+    fun register(email: String, password: String, username: String) {
 
-        if(email == null || password == null){
+        if(email == null || password == null || username == null){
             _authState.value = AuthState.Error("Email or password cannot be empty.")
             return
         }

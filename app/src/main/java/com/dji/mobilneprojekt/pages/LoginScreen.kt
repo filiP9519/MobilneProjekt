@@ -1,6 +1,7 @@
 package com.dji.mobilneprojekt.pages
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -26,9 +28,12 @@ import com.dji.mobilneprojekt.AuthViewModel
 import com.google.firebase.Firebase
 //import com.google.firebase.firestore.firestore
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import com.dji.mobilneprojekt.AuthState
 
 
 @Composable
@@ -37,6 +42,22 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
     var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+
+    val authState = authViewModel.authState.observeAsState()
+    val context = LocalContext.current
+
+    LaunchedEffect(authState.value) {
+        when (authState.value) {
+            is AuthState.Authenticated -> navController.navigate("home")
+            is AuthState.Error -> Toast.makeText(
+                context,
+                (authState.value as AuthState.Error).message,
+                Toast.LENGTH_SHORT
+            ).show()
+            else -> Unit
+        }
+    }
+
 
     Column (
         modifier = Modifier.fillMaxSize(),
@@ -68,7 +89,7 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = {
-
+            authViewModel.login(email, password, username)
         }){
             Text(text = "Login")
         }
@@ -78,5 +99,7 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+
+
     }
 }
