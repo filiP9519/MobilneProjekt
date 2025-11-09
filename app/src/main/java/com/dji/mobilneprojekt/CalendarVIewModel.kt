@@ -17,7 +17,9 @@ import kotlinx.coroutines.launch
 data class MyEvent(
     val id: String = "",
     val title: String = "",
-    val eventDate: String = ""
+    val eventDate: String = "",
+    val eventStartDate : String = "",
+    val eventEndDate : String = ""
 )
 
 data class CalendarUiState (
@@ -26,10 +28,10 @@ data class CalendarUiState (
     val isDatePickerDialogVisible : Boolean = false
 )
 
-class CalendarVIewModel : ViewModel() {
+class CalendarViewModel : ViewModel() {
 
     private val db = Firebase.firestore
-    private val auth = FirebaseAuth.getInstance()
+    private val auth by lazy { FirebaseAuth.getInstance() }
 
     private val currentUserId: String?
         get() = auth.currentUser?.uid
@@ -59,14 +61,13 @@ class CalendarVIewModel : ViewModel() {
     }
 
     fun saveEvent(title: String, date: LocalDate){
-        val userId = currentUserId
-        if(userId == null){
-            return
-        }
+        val userId = currentUserId ?: return
         val dateString = date.format(firestoreDateFormatter)
         val newEvent = MyEvent(
             title = title,
-            eventDate = dateString
+            eventDate = dateString,
+            eventStartDate = dateString,
+            eventEndDate = dateString
             )
         db.collection("users").document(userId).collection("events").add(newEvent)
             .addOnSuccessListener {

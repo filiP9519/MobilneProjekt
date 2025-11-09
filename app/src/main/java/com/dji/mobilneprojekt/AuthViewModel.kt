@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 class AuthViewModel : ViewModel() {
-    private val auth : FirebaseAuth = FirebaseAuth.getInstance()
+    private val auth : FirebaseAuth by lazy { FirebaseAuth.getInstance() }
 
     private val _authState = MutableLiveData<AuthState>();
     val authState : LiveData<AuthState> = _authState

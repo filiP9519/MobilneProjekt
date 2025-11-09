@@ -1,6 +1,5 @@
 package com.dji.mobilneprojekt.pages
 
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -25,8 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.dji.mobilneprojekt.AuthViewModel
-import com.google.firebase.Firebase
-//import com.google.firebase.firestore.firestore
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.setValue
@@ -49,6 +45,13 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
     LaunchedEffect(authState.value) {
         when (authState.value) {
             is AuthState.Authenticated -> navController.navigate("home")
+            /*
+            {
+                // Clear the back stack so pressing "back" doesn't return to register
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+            }*/
             is AuthState.Error -> Toast.makeText(
                 context,
                 (authState.value as AuthState.Error).message,

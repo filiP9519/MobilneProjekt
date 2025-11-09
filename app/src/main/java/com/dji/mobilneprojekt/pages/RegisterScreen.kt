@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -46,6 +45,13 @@ fun RegisterScreen(modifier: Modifier = Modifier, navController: NavController, 
     LaunchedEffect(authState.value) {
         when (authState.value) {
             is AuthState.Authenticated -> navController.navigate("home")
+            /*
+            {
+                // Clear the back stack so pressing "back" doesn't return to register
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+            }*/
             is AuthState.Error -> Toast.makeText(
                 context,
                 (authState.value as AuthState.Error).message,

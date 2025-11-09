@@ -8,10 +8,11 @@ import androidx.navigation.compose.rememberNavController
 import com.dji.mobilneprojekt.pages.HomeScreen
 import com.dji.mobilneprojekt.pages.LoginScreen
 import com.dji.mobilneprojekt.pages.RegisterScreen
+import com.dji.mobilneprojekt.pages.CalendarScreen
 
 
 @Composable
-fun Navigation (modifier: Modifier = Modifier, authViewModel: AuthViewModel) {
+fun Navigation (modifier: Modifier = Modifier, authViewModel: AuthViewModel, calendarViewModel: CalendarViewModel) {
     val navController = rememberNavController()
 
     NavHost(navController = navController,
@@ -25,9 +26,13 @@ fun Navigation (modifier: Modifier = Modifier, authViewModel: AuthViewModel) {
             }
             composable("home") {
                 HomeScreen(modifier, navController, authViewModel)
-
-
                 }
+           composable ("calendar"){
+                CalendarScreen(
+                    modifier, navController, calendarViewModel,
+                    authViewModel
+                )
+            }
     })
 
 }
