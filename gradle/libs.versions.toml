@@ -14,8 +14,21 @@ firebaseBom = "32.4.0"
 firebaseAuthKtxVersion = "24.0.1"
 googleGms = "4.4.2"
 runtimeLivedata = "1.9.4"
+#for google sign-in
+playServicesAuth = "21.2.0"
+googleApiClientAndroid = "2.5.0"
+googleApiServicesCalendar = "v3-rev20240529-2.0.0"
+
+
 
 [libraries]
+#References for OAuth-2
+# ADD THESE NEW ENTRIES
+play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
+google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClientAndroid" }
+google-api-services-calendar = { group = "com.google.apis", name = "google-api-services-calendar", version.ref = "googleApiServicesCalendar" }
+
+
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
