@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.0"
+agp = "8.13.1"
 kotlin = "2.0.21"
 coreKtx = "1.10.1"
 junit = "4.13.2"
@@ -17,11 +17,13 @@ runtimeLivedata = "1.9.4"
 #for google sign-in
 playServicesAuth = "21.2.0"
 googleApiClientAndroid = "2.5.0"
-googleApiServicesCalendar = "v3-rev20240529-2.0.0"
+googleApiServicesCalendar = "v3-rev20240517-2.0.0"
+roomKtx = "2.8.3"
 
 
 
 [libraries]
+
 #References for OAuth-2
 # ADD THESE NEW ENTRIES
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
@@ -48,6 +50,7 @@ firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx"}
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 google-firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtxVersion" }
 androidx-compose-runtime-livedata = { group = "androidx.compose.runtime", name = "runtime-livedata", version.ref = "runtimeLivedata" }
+androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "roomKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -38,6 +38,17 @@ android {
     buildFeatures {
         compose = true
     }
+
+    // --- THIS IS THE FIX ---
+    // Add this block to resolve the duplicate file error.
+    // It's safe to exclude these metadata files.
+    packagingOptions {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/DEPENDENCIES"
+        }
+    }
 }
 
 dependencies {
@@ -50,6 +61,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     // 2. Add the specific Firebase KTX library you need.
     // After (in your app/build.gradle) file
+
     // For example, for Analytics:
     implementation("com.google.firebase:firebase-analytics")
     // Or for Authentication:
@@ -67,6 +79,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.3")
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.compose.runtime.livedata)
+    implementation(libs.androidx.room.ktx)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

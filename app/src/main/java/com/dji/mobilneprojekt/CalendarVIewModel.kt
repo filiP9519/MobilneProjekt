@@ -1,6 +1,7 @@
 package com.dji.mobilneprojekt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.util.copy
 import com.google.firebase.firestore.firestore
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
@@ -9,10 +10,13 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 
 data class MyEvent(
     val id: String = "",
@@ -42,8 +46,18 @@ class CalendarViewModel : ViewModel() {
     val uiState: StateFlow<CalendarUiState> = _uiState.asStateFlow()
 
     init {
-        loadEventsForDate(_uiState.value.selectedDate)
+        loadFirestoreEvents(_uiState.value.selectedDate)
     }
+
+
+    // 1. Add a new StateFlow for Google events
+    private val _googleEvents = MutableStateFlow<List<MyEvent>>(emptyList())
+
+    // 2. Update uiState to be a *combination* of both lists
+    val uiStateCalendar : StateFlow<CalendarUiState> =
+        combine(_uiState, _googleEvents) {firestoreState, googleEventsList ->
+            firestoreState.copy(events = firestoreState.events + googleEventsList)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CalendarUiState())
 
     //Actions called by the View
     fun showDatePickerDialog(){
@@ -57,7 +71,7 @@ class CalendarViewModel : ViewModel() {
     fun selectDate(dateMillis : Long?){
         val date = dateMillis?.toLocalDate()
         _uiState.update {it.copy(selectedDate = date)}
-        loadEventsForDate(date)
+        loadFirestoreEvents(date)
     }
 
     fun saveEvent(title: String, date: LocalDate){
@@ -71,7 +85,7 @@ class CalendarViewModel : ViewModel() {
             )
         db.collection("users").document(userId).collection("events").add(newEvent)
             .addOnSuccessListener {
-                loadEventsForDate(date)
+                loadFirestoreEvents(date)
             }
             .addOnFailureListener {
                 //Handle Error
@@ -82,7 +96,7 @@ class CalendarViewModel : ViewModel() {
 
 
     // --- Private Logic (Data Fetching) ---
-    private fun loadEventsForDate(date: LocalDate?) {
+    private fun loadFirestoreEvents(date: LocalDate?) {
         val userId = currentUserId
         if (date == null || userId == null) {
             _uiState.update { it.copy(events = emptyList()) }
@@ -109,6 +123,13 @@ class CalendarViewModel : ViewModel() {
                 print("Error loading events for date: $dateString")
             }
         }
+    }
+
+    private fun loadGoogleEventsForDate(date: LocalDate?){
+
+    }
+    private fun loadEventsForDate(date: LocalDate?) {
+
     }
 }
 //need to ask for explanation on this function
