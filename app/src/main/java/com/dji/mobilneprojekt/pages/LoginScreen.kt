@@ -96,7 +96,7 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
         }){
             Text(text = "Login")
         }
-        //Button to navigate to the register screen
+
         TextButton(onClick = {navController.navigate("register") }) {
             Text(text = "Dont have an account? Sign Up")
         }

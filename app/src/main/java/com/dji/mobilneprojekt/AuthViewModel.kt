@@ -11,7 +11,6 @@ import com.google.firebase.Firebase
 import com.google.firebase.firestore.firestore
 class AuthViewModel : ViewModel() {
     private val auth : FirebaseAuth by lazy { FirebaseAuth.getInstance() }
-
     private val _authState = MutableLiveData<AuthState>();
     val authState : LiveData<AuthState> = _authState
 
@@ -59,7 +58,10 @@ class AuthViewModel : ViewModel() {
                     val user = auth.currentUser?.uid
                     if (user != null) {
                         val userProfile = mapOf("username" to username, "email" to email)
-                        Firebase.firestore.collection("users").document(user).set(userProfile)
+                        Firebase.firestore
+                            .collection("users")
+                            .document(user)
+                            .set(userProfile)
                     }
                 }else{
                     _authState.value = AuthState.Error(task.exception?.message ?:"Something went wrong.")
@@ -77,7 +79,6 @@ sealed class AuthState {
     object Authenticated : AuthState()
     object Unauthenticated : AuthState()
     object Loading : AuthState()
-
     data class Error(val message: String) : AuthState()
 
 }

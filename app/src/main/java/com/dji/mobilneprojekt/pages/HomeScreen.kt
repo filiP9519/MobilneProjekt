@@ -39,7 +39,11 @@ fun HomeScreen(modifier: Modifier = Modifier, navController: NavController, auth
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton( onClick = { navController.navigate("calendar")} ) {
+        TextButton( onClick =
+            {
+                val refreshTrigger = System.currentTimeMillis()
+                navController.navigate("calendar?refreshTs=$refreshTrigger")
+            } ) {
         Text("Calendar")
         }
 

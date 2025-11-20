@@ -42,6 +42,11 @@ android {
 
 dependencies {
 
+    //retrofit
+    // Retrofit for network calls
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0") // To parse JSON
+
     implementation(platform("com.google.firebase:firebase-bom:34.3.0"))
     // 2. Add the specific Firebase KTX library you need.
     // After (in your app/build.gradle) file
