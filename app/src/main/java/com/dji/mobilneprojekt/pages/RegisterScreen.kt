@@ -15,6 +15,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -34,24 +35,17 @@ import com.dji.mobilneprojekt.AuthViewModel
 @Composable
 fun RegisterScreen(modifier: Modifier = Modifier, navController: NavController, authViewModel: AuthViewModel) {
     //Initializing viariables
-    var email by remember { mutableStateOf("") }
+
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
 
-    val authState = authViewModel.authState.observeAsState()
+
+    val authState = authViewModel.authState.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(authState.value) {
         when (authState.value) {
             is AuthState.Authenticated -> navController.navigate("home")
-            /*
-            {
-                // Clear the back stack so pressing "back" doesn't return to register
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
-            }*/
             is AuthState.Error -> Toast.makeText(
                 context,
                 (authState.value as AuthState.Error).message,
@@ -70,11 +64,6 @@ fun RegisterScreen(modifier: Modifier = Modifier, navController: NavController, 
             Spacer(modifier = Modifier.height(16.dp))
 
             TextField(
-                value = email,
-                onValueChange = { newText -> email = newText },
-                label = { Text(text = "Email") }
-            )
-            TextField(
                 value = username,
                 onValueChange = { newText -> username = newText },
                 label = { Text(text = "Username") },
@@ -91,13 +80,11 @@ fun RegisterScreen(modifier: Modifier = Modifier, navController: NavController, 
             )
 
             Button(onClick = {
-                authViewModel.register(email, password, username)
+                authViewModel.register(username, password)
             }) {
                 Text(text = "Register")
             }
 
-            //Button to go back to login
-            //navController.NavigateUp()
             TextButton(onClick = { navController.navigate("login") }) {
                 Text(text = "Already have an account? Login")
             }

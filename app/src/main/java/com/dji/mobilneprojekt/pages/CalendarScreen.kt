@@ -44,11 +44,11 @@ import java.time.LocalDate
 import com.dji.mobilneprojekt.CalendarViewModel
 import java.time.Instant
 import com.dji.mobilneprojekt.AuthViewModel
-import com.dji.mobilneprojekt.MyEvent
 import com.dji.mobilneprojekt.Holiday // Import the Holiday class
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
+import com.dji.mobilneprojekt.MyEvent
 
 fun LocalDate.formatAsString() : String {
     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -191,7 +191,7 @@ fun CalendarScreen(modifier: Modifier = Modifier, navController: NavController, 
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(onClick = {
-                authViewModel.signout()
+                authViewModel.signOut()
                 navController.navigate("login") {
                     popUpTo(navController.graph.startDestinationId) {
                         inclusive = true

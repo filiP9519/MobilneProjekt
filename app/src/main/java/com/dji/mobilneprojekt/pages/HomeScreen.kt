@@ -5,11 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -21,11 +22,15 @@ import com.dji.mobilneprojekt.AuthViewModel
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier, navController: NavController, authViewModel: AuthViewModel) {
 
-    val authState = authViewModel.authState.observeAsState()
+    val authState = authViewModel.authState.collectAsState()
 
-    LaunchedEffect(authState.value) {
+    LaunchedEffect(authState) {
         when (authState.value) {
-            is AuthState.Unauthenticated -> navController.navigate("login")
+            is AuthState.Unauthenticated -> {
+                navController.navigate("login") {
+                    popUpTo("home") { inclusive = true }
+                }
+            }
             else -> Unit
         }
     }
@@ -49,10 +54,15 @@ fun HomeScreen(modifier: Modifier = Modifier, navController: NavController, auth
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        TextButton(onClick = {
-            authViewModel.signout()
-        }) {
-            Text(text = "Sign Out")
+        Button(onClick = {
+            authViewModel.signOut()
+            navController.navigate("login") {
+                popUpTo(navController.graph.startDestinationId) {
+                    inclusive = true
+                }
+            }
+        } ) {
+            Text("SignOut")
         }
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,23 +36,16 @@ import com.dji.mobilneprojekt.AuthState
 @Composable
 fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, authViewModel: AuthViewModel) {
 
-    var email by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    val authState = authViewModel.authState.observeAsState()
+    val authState = authViewModel.authState.collectAsState()
     val context = LocalContext.current
 
     LaunchedEffect(authState.value) {
         when (authState.value) {
             is AuthState.Authenticated -> navController.navigate("home")
-            /*
-            {
-                // Clear the back stack so pressing "back" doesn't return to register
-                popUpTo(navController.graph.startDestinationId) {
-                    inclusive = true
-                }
-            }*/
+
             is AuthState.Error -> Toast.makeText(
                 context,
                 (authState.value as AuthState.Error).message,
@@ -71,11 +65,6 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
         Spacer(modifier = Modifier.height(16.dp))
 
         TextField(
-            value = email,
-            onValueChange = { newText -> email = newText},
-            label = { Text(text ="Email") }
-        )
-        TextField(
             value = username,
             onValueChange = { newText -> username = newText},
             label = { Text(text ="Username") },
@@ -92,7 +81,7 @@ fun LoginScreen(modifier: Modifier = Modifier, navController: NavController, aut
         Spacer(modifier = Modifier.height(24.dp))
 
         Button(onClick = {
-            authViewModel.login(email, password, username)
+            authViewModel.login(username, password)
         }){
             Text(text = "Login")
         }
