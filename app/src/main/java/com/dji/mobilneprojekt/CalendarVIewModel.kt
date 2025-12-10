@@ -1,28 +1,25 @@
 package com.dji.mobilneprojekt
 
-import android.annotation.SuppressLint
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.firestore.firestore
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.launch
+import com.dji.mobilneprojekt.Repository.Repository
+import com.dji.mobilneprojekt.data.AppDatabase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
+import com.dji.mobilneprojekt.data.EventEntity
 import kotlinx.coroutines.Dispatchers
-import androidx.compose.material3.DatePickerState
-import androidx.compose.material3.ExperimentalMaterial3Api
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 data class Holiday (
     val date: String,
@@ -39,146 +36,110 @@ data class MyEvent(
 
 data class CalendarUiState (
     val selectedDate: LocalDate? = LocalDate.now(),
-    val events: List<MyEvent> = emptyList(),
+    val events: List<EventEntity> = emptyList(),
     val holidays : List <Holiday> = emptyList(),
     val isDatePickerDialogVisible : Boolean = false
 )
 
 
 
-class CalendarViewModel(application: Application) : AndroidViewModel(application) { // why did we changed this ?
-    private val db by lazy { Firebase.firestore }
-    private val auth by lazy { FirebaseAuth.getInstance() }
+class CalendarViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val eventCache = mutableMapOf<String, List<MyEvent>>()
-    private val _datesWithEvents = MutableStateFlow<Set<LocalDate>>(emptySet())
-    val datesWithEvents: StateFlow<Set<LocalDate>> = _datesWithEvents.asStateFlow()
-    private val currentUserId: String?
-        get() = auth.currentUser?.uid
-    private val firestoreDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    private val _uiState = MutableStateFlow(CalendarUiState())
-    //private val _deviceEvents = MutableStateFlow<List<MyEvent>>(emptyList())
+    private val repository = Repository(AppDatabase.getDatabase(application))
+    var currentUserID: Int = -1
 
+    private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+    private val _selectedDate = MutableStateFlow(LocalDate.now())
+    private val _isDatePickerVisible = MutableStateFlow(false)
     private val _apiHolidays = MutableStateFlow<List<Holiday>>(emptyList())
-    // CRITICAL: This list holds ALL holidays for the year (cached from API)
-    // We fetch this once, and filter from it later.
     private var allCachedHolidays = listOf<Holiday>()
-    val uiState: StateFlow<CalendarUiState> =
-        combine(_uiState, _apiHolidays) {firestoreState, apiHolidays ->
-            firestoreState.copy(
-                events = firestoreState.events,
-                holidays = apiHolidays
-            )
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), CalendarUiState())
+
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val uiState: StateFlow<CalendarUiState> = combine(
+        _selectedDate,
+        _isDatePickerVisible,
+        _apiHolidays,
+        _selectedDate.flatMapLatest { date ->
+            if (currentUserID != -1) {
+                repository.getEvents(date, currentUserID)
+            } else {
+                flowOf(emptyList<EventEntity>())
+            }
+        }
+    ) { date, isDialogVisible, holidays, dbEvents ->
+        CalendarUiState(
+            selectedDate = date,
+            isDatePickerDialogVisible = isDialogVisible,
+            holidays = holidays,
+            events = dbEvents
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = CalendarUiState()
+    )
 
     init {
-        // 1. Fetch the whole year's holidays immediately
         fetchHolidaysForYear()
-        // 2. Select today's date (which will trigger loading other events)
-        selectDate(Instant.now().toEpochMilli())
-        loadEventsForMonth(LocalDate.now().year, LocalDate.now().monthValue)
     }
-
-    @OptIn(ExperimentalMaterial3Api::class)
-    fun onVisibleMonthChanged(datePickerState: DatePickerState) {
-        datePickerState.displayedMonthMillis?.let { monthMillis ->
-            val monthDate = Instant.ofEpochMilli(monthMillis).atZone(ZoneId.systemDefault()).toLocalDate()
-            loadEventsForMonth(monthDate.year, monthDate.monthValue)
-        }
-    }
-    //Actions called by the View
-    fun showDatePickerDialog(){ _uiState.update {it.copy(isDatePickerDialogVisible = true)} }
-    fun hideDatePickerDialog(){ _uiState.update {it.copy(isDatePickerDialogVisible = false)} }
-    fun selectDate(dateMillis : Long?){
-        if (dateMillis == null) return
+    fun selectDate(dateMillis: Long?){
+        if(dateMillis == null) return
         val date = dateMillis.toLocalDate()
-        _uiState.update {
-            it.copy(
-                selectedDate = date
-                //events = emptyList()
-            )
+
+        _selectedDate.value = date
+
+        val dateString = date.format(dateFormatter)
+        _apiHolidays.value = allCachedHolidays.filter { it.date == dateString }
+    }
+
+    fun showDatePickerDialog() { _isDatePickerVisible.value = true }
+    fun hideDatePickerDialog() { _isDatePickerVisible.value = false }
+
+    fun saveEvent (title : String, date : LocalDate){
+        if (currentUserID != -1) {
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.addEvent(title, date, currentUserID)
+              // selectDate(date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
+            }
         }
-        loadFirestoreEvents(date)
-
-        val dateString = date.format(firestoreDateFormatter)
-        val holidaysForThisDay = allCachedHolidays.filter {it.date == dateString}
-        _apiHolidays.value = holidaysForThisDay
-    }
-    fun saveEvent(title: String, date: LocalDate){
-        val userId = currentUserId ?: return
-        val dateString = date.format(firestoreDateFormatter)
-        val newEvent = MyEvent(
-            title = title,
-            eventStartDate = dateString,
-            eventEndDate = dateString
-            )
-
-        _uiState.update { it.copy(events = it.events + newEvent) }
-
-        //Cache update
-        //adding events to cache manually
-        val currentCachedList = eventCache[dateString]?:emptyList()
-        eventCache[dateString] = currentCachedList + newEvent
-
-        db.collection("users").document(userId).collection("events").add(newEvent)
-            //ID patching
-            //The event is saved, but local copy has no ID, fix here:
-            .addOnSuccessListener { documentReference->
-                val id = documentReference.id
-                val eventWithId = newEvent.copy(id = id)
-
-                //Update UI State with ID-version of event
-                _uiState.update { state ->
-                    val updatedList = state.events.map {
-                        if (it == newEvent) eventWithId else it
-                    }
-                    state.copy(events = updatedList)
-                }
-                // Update Cache with the ID-version of the event
-                eventCache[dateString]?.let { cachedList ->
-                    val updatedCache = cachedList.map {
-                        if (it == newEvent) eventWithId else it
-                    }
-                    eventCache[dateString] = updatedCache
-                }
-                Log.d("ViewModel", "Event saved and ID patched: $id")
-                // CRITICAL: Do NOT call loadFirestoreEvents(date) here.
-                // It avoids the "Stale Query" race condition.
-            }
-            .addOnFailureListener {
-                //Handle Error
-                print("Error saving event")
-                // Only on failure do we invalidate cache to force a refresh/retry state
-                eventCache.remove(dateString)
-                loadFirestoreEvents(date)
-            }
     }
 
-
-    private fun fetchHolidaysForYear() {
+    fun fetchHolidaysForYear(){
         viewModelScope.launch(Dispatchers.IO) {
             try{
                 val currentYear = LocalDate.now().year
                 val rawHolidays = RetrofitInstance.api.getHolidays(currentYear, "SK")
-
                 allCachedHolidays = rawHolidays
-                Log.d("API_SUCCESS", "Cached ${allCachedHolidays.size} holidays for year $currentYear")
 
-                _uiState.value.selectedDate?.let {date->
-                    val dateString = date.format(firestoreDateFormatter)
-                    val holidaysForThisDay = allCachedHolidays.filter {it.date == dateString}
-                    _apiHolidays.value = holidaysForThisDay
-
-                }
-
-            }
-            catch(e: Exception){
-                Log.e("API_ERROR", "Failed to fetch holidays: ${e.message}")
-                allCachedHolidays = emptyList()
+                val dateString = _selectedDate.value.format(dateFormatter)
+                _apiHolidays.value = allCachedHolidays.filter { it.date == dateString }
+            } catch (e: Exception){
+                Log.e("ViewModel","API Error", e)
             }
         }
     }
+    fun deleteEvent(eventId: Int){
+        if (currentUserID != -1){
+            viewModelScope.launch(Dispatchers.IO) {
+                repository.deleteEvent(eventId)
 
+            }
+        }
+    }
+}
+
+
+    fun saveEvent(title: String, date: LocalDate){
+
+
+    }
+
+
+    private fun fetchHolidaysForYear() {
+
+    }
+/*
     private fun loadFirestoreEvents(date: LocalDate?){
         val userId = currentUserId
 
@@ -188,7 +149,7 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
             return
         }
 
-        val dateString = date.format(firestoreDateFormatter)
+        val dateString = date.format(dateFormatter)
 
         if(eventCache.containsKey(dateString)){
             _uiState.update { it.copy(events = eventCache[dateString] ?: emptyList()) }
@@ -218,76 +179,11 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
                 }
         }
     }
+*/
 
-    @SuppressLint("SuspiciousIndentation")
-    private fun loadEventsForMonth(year : Int, month: Int){
-        val userId = currentUserId ?: return
-
-        viewModelScope.launch(Dispatchers.IO){
-            val eventDates = mutableSetOf<LocalDate>()
-
-            db.collection("users").document(userId).collection("events").get()
-                .addOnSuccessListener { snapshot ->
-                    snapshot.documents.forEach { doc ->
-                        try{
-                            val eventDateStr = doc.getString("eventStartDate")
-                            if (eventDateStr != null){
-                            val eventDate = LocalDate.parse(eventDateStr, firestoreDateFormatter)
-                                if (eventDate.year == year && eventDate.monthValue == month){
-                                eventDates.add(eventDate)
-                                }
-                            }
-                        } catch (e: Exception){
-                            Log.e("ViewModel", "Failed to parse date from Firestore", e)
-                        }
-                    }
-                    allCachedHolidays.forEach {holiday ->
-                        try{
-                            val holidayDate = LocalDate.parse(holiday.date, firestoreDateFormatter)
-                            if(holidayDate.year == year && holidayDate.monthValue == month){
-                                eventDates.add(holidayDate)
-                            }
-                        } catch (e: Exception){
-                            Log.e("ViewModel", "Failed to parse date from Holiday cache", e)
-                        }
-                    }
-                    _datesWithEvents.value = eventDates
-                }
-                .addOnFailureListener {
-                    Log.e("ViewModel", "Failed to load month events from Firestore", it)
-                }
-        }
-    }
 
     fun deleteEvent (eventId: String) {
 
-        if(eventId.isBlank() || eventId == "device" ){
-            Log.w("ViewModel", "Invalid event ID: $eventId")
-            return
-        }
-
-        val userId = currentUserId?: return
-        _uiState.value.selectedDate?.let {date ->
-            val dateString = date.format(firestoreDateFormatter)
-            eventCache.remove(dateString)
-        }
-        try{
-            _uiState.update { currentState ->
-                val updatedEvents = currentState.events.filter {it.id != eventId}
-                currentState.copy(events = updatedEvents)
-            }
-
-            db.collection("users").document(userId).collection("events").document(eventId).delete()
-                .addOnSuccessListener { loadFirestoreEvents(_uiState.value.selectedDate)
-                    Log.d("Firestore", "Event $eventId successfully deleted.")
-                }
-                .addOnFailureListener {e->
-                    Log.w("Firestore", "Error deleting document", e)
-                    _uiState.value.selectedDate.let{ loadFirestoreEvents(it) }
-                }
-        }catch (e: Exception){
-            Log.e("ViewModel", "Failed to delete event", e)
-        }
 
     }
 
@@ -296,4 +192,3 @@ fun Long.toLocalDate(): LocalDate {
         .atZone(ZoneId.systemDefault())
         .toLocalDate()
     }
-}

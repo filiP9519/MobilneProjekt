@@ -1,10 +1,6 @@
 package com.dji.mobilneprojekt.pages
 
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
@@ -26,7 +22,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +32,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import java.time.LocalDate
@@ -48,7 +42,8 @@ import com.dji.mobilneprojekt.Holiday // Import the Holiday class
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
-import com.dji.mobilneprojekt.MyEvent
+
+import com.dji.mobilneprojekt.data.EventEntity
 
 fun LocalDate.formatAsString() : String {
     val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -57,50 +52,22 @@ fun LocalDate.formatAsString() : String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CalendarScreen(modifier: Modifier = Modifier, navController: NavController, viewModel: CalendarViewModel, authViewModel: AuthViewModel){
-
-    val context = LocalContext.current
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
-        )
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            hasPermission = isGranted
-            if (isGranted) {
-                viewModel.selectDate(Instant.now().toEpochMilli())
-            }
-        }
-    )
-
-    LaunchedEffect(Unit) {
-        if (!hasPermission) {
-            permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-        }
-    }
-
+fun CalendarScreen(
+    modifier: Modifier = Modifier,
+    navController: NavController,
+    viewModel: CalendarViewModel,
+    authViewModel: AuthViewModel
+) {
     val uiState by viewModel.uiState.collectAsState()
-    val datesWithEvents by viewModel.datesWithEvents.collectAsState()
-
     var eventTitle by remember { mutableStateOf("") }
 
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = Instant.now().toEpochMilli(),
-        initialDisplayMode = DisplayMode.Picker
+        initialSelectedDateMillis = Instant.now().toEpochMilli()
     )
 
-    LaunchedEffect(datePickerState.displayedMonthMillis){
-        viewModel.onVisibleMonthChanged(datePickerState)
-    }
-
-    val refreshTrigger = navController.currentBackStackEntry?.arguments?.getLong("refreshTs")
-    LaunchedEffect(datePickerState.selectedDateMillis, refreshTrigger) {
+    LaunchedEffect(datePickerState.selectedDateMillis) {
         viewModel.selectDate(datePickerState.selectedDateMillis)
     }
-
-
 
     Column(
         modifier = modifier
@@ -131,11 +98,11 @@ fun CalendarScreen(modifier: Modifier = Modifier, navController: NavController, 
         Spacer(Modifier.height(8.dp))
         Button(
             onClick = {
-                uiState.selectedDate?.let { date ->
-                    if(eventTitle.isNotBlank()){
-                        viewModel.saveEvent(eventTitle, date)
-                        eventTitle = ""
-                    }
+                val currentDate = uiState.selectedDate
+                if(eventTitle.isNotBlank() && currentDate != null){
+                    // Use the selected date from UI state directly
+                    viewModel.saveEvent(eventTitle, currentDate)
+                    eventTitle = ""
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -144,8 +111,6 @@ fun CalendarScreen(modifier: Modifier = Modifier, navController: NavController, 
         }
 
         Spacer(Modifier.height(24.dp))
-
-
 
         Text(
             text = "Events on this day:",
@@ -163,7 +128,7 @@ fun CalendarScreen(modifier: Modifier = Modifier, navController: NavController, 
             }
 
             // --- SECTION 2: USER EVENTS (Firebase + Device) ---
-            if (uiState.events.isEmpty() && uiState.holidays.isEmpty() && hasPermission) {
+            if (uiState.events.isEmpty() && uiState.holidays.isEmpty()) {
                 item {
                     Text(
                         text = "No events.",
@@ -178,7 +143,7 @@ fun CalendarScreen(modifier: Modifier = Modifier, navController: NavController, 
                         onDelete = {eventId ->
                             viewModel.deleteEvent(eventId)
                         }
-                        )
+                    )
                 }
             }
         }
@@ -206,8 +171,7 @@ fun CalendarScreen(modifier: Modifier = Modifier, navController: NavController, 
 
 // A standard item for User/Device events
 @Composable
-fun EventItem(event : MyEvent, onDelete: (String) -> Unit){
-    val isFirestoreEvent = event.id != "device"
+fun EventItem(event: EventEntity, onDelete: (Int) -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -220,29 +184,21 @@ fun EventItem(event : MyEvent, onDelete: (String) -> Unit){
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f))
-            {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(text = event.title, style = MaterialTheme.typography.bodyLarge)
-            if (isFirestoreEvent){
-                Text(
-                    text = "${event.eventStartDate} to ${event.eventEndDate}",
-                    style = MaterialTheme.typography.bodySmall
+                // If you want to show date details, you can add them here
+            }
+
+            IconButton(onClick = { onDelete(event.eventID) }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "Delete Event",
+                    tint = MaterialTheme.colorScheme.error
                 )
-            }
-            }
-            if (isFirestoreEvent) {
-                IconButton(onClick = { onDelete(event.id)}) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Event",
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                }
             }
         }
     }
 }
-
 
 // A Distinct item for Public Holidays (Different Color/Style)
 @Composable
@@ -270,3 +226,4 @@ fun HolidayItem(holiday: Holiday) {
         }
     }
 }
+
