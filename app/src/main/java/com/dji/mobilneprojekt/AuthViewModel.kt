@@ -7,6 +7,7 @@ import com.dji.mobilneprojekt.data.AppDatabase
 import com.dji.mobilneprojekt.Repository.Repository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -14,6 +15,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unauthenticated)
     val authState: StateFlow<AuthState> = _authState
+    private val _currentUserId = MutableStateFlow(-1)
+    val currentUserId: StateFlow<Int> = _currentUserId.asStateFlow()
 
     var loggedInUser : Int = -1
         private set
@@ -28,7 +31,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch{
         val user = repository.login(username, password)
             if(user != null){
-                loggedInUser = user.userID
+                _currentUserId.value = user.userID
                 _authState.value = AuthState.Authenticated
             } else {
                 _authState.value = AuthState.Error("Invalid username or password")
@@ -54,7 +57,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun signOut (){
-        loggedInUser = -1
+        _currentUserId.value = -1
         _authState.value = AuthState.Unauthenticated
     }
 

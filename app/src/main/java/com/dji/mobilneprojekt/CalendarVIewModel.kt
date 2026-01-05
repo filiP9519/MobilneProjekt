@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package com.dji.mobilneprojekt
 
 import android.app.Application
@@ -27,12 +29,6 @@ data class Holiday (
     val name: String,
     val countryCode: String
 )
-data class MyEvent(
-    val id: String = "",
-    val title: String = "",
-    val eventStartDate : String = "",
-    val eventEndDate : String = ""
-)
 
 data class CalendarUiState (
     val selectedDate: LocalDate? = LocalDate.now(),
@@ -45,8 +41,11 @@ data class CalendarUiState (
 
 class CalendarViewModel(application: Application) : AndroidViewModel(application) {
 
+
     private val repository = Repository(AppDatabase.getDatabase(application))
-    var currentUserID: Int = -1
+
+    private val _currentUserID = MutableStateFlow(1)
+
 
     private val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
     private val _selectedDate = MutableStateFlow(LocalDate.now())
@@ -54,25 +53,33 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     private val _apiHolidays = MutableStateFlow<List<Holiday>>(emptyList())
     private var allCachedHolidays = listOf<Holiday>()
 
+    private val eventsFlow: Flow<List<EventEntity>> = combine(_selectedDate, _currentUserID) { date, userId ->
+        Pair(date, userId)
+    }.flatMapLatest { (date, userId) ->
+        if (userId != -1) {
+            Log.d("CalendarViewModel", "Fetching events for User: $userId on Date: $date")
+            // Because Room returns a Flow, this will AUTOMATICALLY update when you save/delete events!
+            repository.getEvents(date, userId)
+        } else {
+            // If no valid user, return empty list
+            Log.d("CalendarViewModel", "No valid user ($userId), returning empty list")
+            flowOf(emptyList<EventEntity>())
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     val uiState: StateFlow<CalendarUiState> = combine(
         _selectedDate,
         _isDatePickerVisible,
         _apiHolidays,
-        _selectedDate.flatMapLatest { date ->
-            if (currentUserID != -1) {
-                repository.getEvents(date, currentUserID)
-            } else {
-                flowOf(emptyList<EventEntity>())
-            }
-        }
+        eventsFlow
     ) { date, isDialogVisible, holidays, dbEvents ->
         CalendarUiState(
             selectedDate = date,
             isDatePickerDialogVisible = isDialogVisible,
             holidays = holidays,
             events = dbEvents
+
         )
     }.stateIn(
         scope = viewModelScope,
@@ -82,6 +89,10 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
 
     init {
         fetchHolidaysForYear()
+    }
+
+    fun setUserId(id : Int) {
+        _currentUserID.value = id
     }
     fun selectDate(dateMillis: Long?){
         if(dateMillis == null) return
@@ -97,11 +108,16 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
     fun hideDatePickerDialog() { _isDatePickerVisible.value = false }
 
     fun saveEvent (title : String, date : LocalDate){
-        if (currentUserID != -1) {
+        val userId = _currentUserID.value
+        if (userId != -1) {
             viewModelScope.launch(Dispatchers.IO) {
-                repository.addEvent(title, date, currentUserID)
-              // selectDate(date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli())
+                Log.d("CalendarViewModel", "Attempting to save event: $title for user $userId")
+                repository.addEvent(title, date, userId)
+                // Note: No need to call selectDate() manually.
+                // The Room Flow inside eventsFlow will detect the database change and update the UI automatically.
             }
+        } else {
+            Log.e("CalendarViewModel", "Cannot save event: UserID is still -1")
         }
     }
 
@@ -120,72 +136,17 @@ class CalendarViewModel(application: Application) : AndroidViewModel(application
         }
     }
     fun deleteEvent(eventId: Int){
-        if (currentUserID != -1){
+        val userId = _currentUserID.value
+        if (userId != -1) {
             viewModelScope.launch(Dispatchers.IO) {
                 repository.deleteEvent(eventId)
-
             }
         }
     }
-}
-
-
-    fun saveEvent(title: String, date: LocalDate){
-
-
     }
 
 
-    private fun fetchHolidaysForYear() {
 
-    }
-/*
-    private fun loadFirestoreEvents(date: LocalDate?){
-        val userId = currentUserId
-
-
-        if (date == null || userId == null) {
-            _uiState.update { it.copy(events = emptyList()) }
-            return
-        }
-
-        val dateString = date.format(dateFormatter)
-
-        if(eventCache.containsKey(dateString)){
-            _uiState.update { it.copy(events = eventCache[dateString] ?: emptyList()) }
-            return
-        }
-
-        viewModelScope.launch{
-            db.collection("users")
-                .document(userId)
-                .collection("events")
-                .whereEqualTo("eventStartDate", dateString)
-                .get()
-                .addOnSuccessListener { querySnapshot ->
-
-                    val firestoreEvents: List<MyEvent> = querySnapshot.documents.mapNotNull { document ->
-                        val event = document.toObject(MyEvent::class.java)
-                        event?.copy(id = document.id)
-                    }
-
-                    eventCache[dateString] = firestoreEvents
-
-                    _uiState.update {it.copy(events = firestoreEvents) }
-                }
-                .addOnFailureListener {
-                    //Handle Error
-                    _uiState.update {it.copy(events = emptyList())}
-                }
-        }
-    }
-*/
-
-
-    fun deleteEvent (eventId: String) {
-
-
-    }
 
 fun Long.toLocalDate(): LocalDate {
     return Instant.ofEpochMilli(this)

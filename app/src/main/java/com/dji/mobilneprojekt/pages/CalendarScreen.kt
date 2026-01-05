@@ -38,11 +38,10 @@ import java.time.LocalDate
 import com.dji.mobilneprojekt.CalendarViewModel
 import java.time.Instant
 import com.dji.mobilneprojekt.AuthViewModel
-import com.dji.mobilneprojekt.Holiday // Import the Holiday class
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
-
+import com.dji.mobilneprojekt.Holiday
 import com.dji.mobilneprojekt.data.EventEntity
 
 fun LocalDate.formatAsString() : String {
@@ -58,6 +57,7 @@ fun CalendarScreen(
     viewModel: CalendarViewModel,
     authViewModel: AuthViewModel
 ) {
+    val userId by authViewModel.currentUserId.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     var eventTitle by remember { mutableStateOf("") }
 
@@ -67,6 +67,13 @@ fun CalendarScreen(
 
     LaunchedEffect(datePickerState.selectedDateMillis) {
         viewModel.selectDate(datePickerState.selectedDateMillis)
+    }
+    LaunchedEffect(userId) {
+        if (userId != -1){
+            viewModel.setUserId(userId)
+        }else {
+            Error()
+        }
     }
 
     Column(
